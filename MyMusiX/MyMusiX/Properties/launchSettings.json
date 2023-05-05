@@ -2,7 +2,7 @@
   "profiles": {
     "MyMusiX": {
       "commandName": "Project",
-      "commandLineArgs": "recommend"
+      "commandLineArgs": "query --artists"
     }
   }
 }

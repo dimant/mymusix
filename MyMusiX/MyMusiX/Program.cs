@@ -6,6 +6,7 @@
     using System.CommandLine.Parsing;
     using System.IO;
     using System.Threading.Tasks;
+    using static System.Runtime.InteropServices.JavaScript.JSType;
 
     public class Program
     {
@@ -73,11 +74,19 @@
 
             var artists = records.Select(r => r.ArtistName).Distinct().ToArray();
 
+            var histogram = records
+                    .Where(r => !string.IsNullOrEmpty(r.ArtistName))
+                    .GroupBy(r => r.ArtistName)
+                    .Select(g => new { Value = g.Key, Count = g.Count() })
+                    .OrderBy(x => x.Count)
+                    .ToList();
+
             Console.WriteLine($"sampling {sampleSize} artists out of {artists.Count()}");
 
-            return artists
-                .OrderBy(r => random.Next())
-                .Take(sampleSize);
+            return histogram
+                .OrderBy(r => random.Next() * r.Count)
+                .Take(sampleSize)
+                .Select(x => x.Value);
         }
 
         static async Task RecommendArtistsAsync(int nRecommendations, int sampleSize, string qualifier)
