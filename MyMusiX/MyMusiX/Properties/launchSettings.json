@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MyMusiX": {
+      "commandName": "Project",
+      "commandLineArgs": "import --input-csv \"C:\\Users\\ditodoro\\Downloads\\My Tidal Playlist.csv\""
+    }
+  }
+}
