@@ -87,7 +87,7 @@
 
             var artistsJoined = string.Join(',', artists);
 
-            var response = await chatClient.AskQuestionAsync($"recommend {nRecommendations} artists similar to {artistsJoined}");
+            var response = await chatClient.AskQuestionAsync($"recommend {nRecommendations} artists similar to {artistsJoined} and justify your recommendation");
 
             Console.WriteLine(response);
         }
