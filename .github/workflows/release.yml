@@ -33,6 +33,10 @@ jobs:
         cd MyMusiX
         dotnet publish --configuration Release --no-build --output ../publish
 
+    - name: Create zip file
+      run: |
+        zip -r ./mymusix-${{ env.VERSION }}.zip ./publish/
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -50,6 +54,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./publish//mymusix-${{ env.VERSION }}.zip
+        asset_path: ./mymusix-${{ env.VERSION }}.zip
         asset_name: mymusix-${{ env.VERSION }}.zip # Replace with your artifact file name
         asset_content_type: application/zip
