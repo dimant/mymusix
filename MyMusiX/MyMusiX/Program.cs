@@ -1,6 +1,7 @@
 ﻿namespace MyMusiX
 {
     using Microsoft.EntityFrameworkCore;
+    using System;
     using System.CommandLine;
     using System.CommandLine.Parsing;
     using System.IO;
@@ -64,16 +65,25 @@
 
             await db.ImportRecordsAsync(reader.ReadRecords(file));
         }
+
+        static IEnumerable<string> SelectArtists(IEnumerable<Record> records, int sampleSize)
+        {
+            var random = new Random(DateTime.Now.Millisecond);
+
+            return records
+                .Select(r => r.ArtistName)
+                .Distinct()
+                .ToList()
+                .OrderBy(r => random.Next())
+                .Take(sampleSize);
+        }
+
         static async Task RecommendArtistsAsync(int nRecommendations, int sampleSize)
         {
-            Random random = new Random();
             var db = new ApplicationDbContext();
             var chatClient = new ChatClient();
 
-            var artists = db.Records
-                .Select(r => r.ArtistName)
-                .Distinct()
-                .Take(sampleSize);
+            var artists = SelectArtists(db.Records, sampleSize);
 
             var artistsJoined = string.Join(',', artists);
 
@@ -84,13 +94,9 @@
 
         static void QueryArtists(int sampleSize)
         {
-            Random random = new Random();
             var db = new ApplicationDbContext();
 
-            var artists = db.Records
-                .Select(r => r.ArtistName)
-                .Distinct()
-                .Take(sampleSize);
+            var artists = SelectArtists(db.Records, sampleSize);
 
             Console.WriteLine(string.Join(',', artists));
         }
