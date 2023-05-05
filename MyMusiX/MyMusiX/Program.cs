@@ -26,7 +26,7 @@
 
 
             var isArtist = new Option<bool>("--artists", "Query artists");
-            var sampleSize = new Option<int>("--s", getDefaultValue: () => 100, description: "number of items to return at random");
+            var sampleSize = new Option<int>("--s", getDefaultValue: () => 25, description: "number of items to return at random");
             var queryCommand = new Command("query", "Query music records")
             {
                 isArtist, sampleSize
@@ -41,15 +41,16 @@
             }, isArtist, sampleSize);
 
             var nRecommendations = new Option<int>("--n", getDefaultValue: () => 3, description: "Number of artists to recommend");
+            var qualifier = new Option<string>("--qualifier", getDefaultValue: () => "", description: "A string to append to the prompt.");
             var recommendCommand = new Command("recommend", "Recommend artists")
             {
-                nRecommendations, sampleSize
+                nRecommendations, sampleSize, qualifier
             };
 
-            recommendCommand.SetHandler((nRecommendations, sampleSize) =>
+            recommendCommand.SetHandler((nRecommendations, sampleSize, qualifier) =>
             {
-                RecommendArtistsAsync(nRecommendations, sampleSize).Wait();
-            }, nRecommendations, sampleSize);
+                RecommendArtistsAsync(nRecommendations, sampleSize, qualifier).Wait();
+            }, nRecommendations, sampleSize, qualifier);
 
             rootCommand.Add(importCsvCommand);
             rootCommand.Add(queryCommand);
@@ -70,15 +71,16 @@
         {
             var random = new Random(DateTime.Now.Millisecond);
 
-            return records
-                .Select(r => r.ArtistName)
-                .Distinct()
-                .ToList()
+            var artists = records.Select(r => r.ArtistName).Distinct().ToArray();
+
+            Console.WriteLine($"sampling {sampleSize} artists out of {artists.Count()}");
+
+            return artists
                 .OrderBy(r => random.Next())
                 .Take(sampleSize);
         }
 
-        static async Task RecommendArtistsAsync(int nRecommendations, int sampleSize)
+        static async Task RecommendArtistsAsync(int nRecommendations, int sampleSize, string qualifier)
         {
             var db = new ApplicationDbContext();
             var chatClient = new ChatClient();
@@ -87,7 +89,10 @@
 
             var artistsJoined = string.Join(',', artists);
 
-            var response = await chatClient.AskQuestionAsync($"recommend {nRecommendations} artists similar to {artistsJoined} and justify your recommendation");
+            var response = await chatClient
+                .AskQuestionAsync(
+                $"recommend {nRecommendations} artists which i would also like if i like {artistsJoined} and justify your recommendation. "
+                + qualifier);
 
             Console.WriteLine(response);
         }
