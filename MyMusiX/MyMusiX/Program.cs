@@ -1,64 +1,98 @@
 ﻿namespace MyMusiX
 {
-    using CsvHelper;
-    using CsvHelper.Configuration;
-    using System;
+    using Microsoft.EntityFrameworkCore;
     using System.CommandLine;
-    using System.CommandLine.Builder;
-    using System.CommandLine.Invocation;
     using System.CommandLine.Parsing;
-    using System.Globalization;
     using System.IO;
     using System.Threading.Tasks;
 
-    internal class Program
+    public class Program
     {
         static async Task<int> Main(string[] args)
         {
             var rootCommand = new RootCommand();
 
             var importCsvFile = new Option<FileInfo?>("--input-csv", "CSV file to import from");
-            var sqlitdb = new Option<FileInfo?>("--sqlitedb", "SQLite db to import to");
             var importCsvCommand = new Command("import", "Import CSV file")
             {
-                importCsvFile, sqlitdb
+                importCsvFile
             };
-
-            rootCommand.Add(importCsvCommand);
 
             importCsvCommand.SetHandler((file) =>
             {
-                ReadFile(file!);
+                ImportFileAsync(file!).Wait();
             }, importCsvFile);
+
+
+            var isArtist = new Option<bool>("--artists", "Query artists");
+            var sampleSize = new Option<int>("--s", getDefaultValue: () => 100, description: "number of items to return at random");
+            var queryCommand = new Command("query", "Query music records")
+            {
+                isArtist, sampleSize
+            };
+
+            queryCommand.SetHandler((isArtist, sampleSize) =>
+            {
+                if (isArtist)
+                {
+                    QueryArtists(sampleSize);
+                }
+            }, isArtist, sampleSize);
+
+            var nRecommendations = new Option<int>("--n", getDefaultValue: () => 3, description: "Number of artists to recommend");
+            var recommendCommand = new Command("recommend", "Recommend artists")
+            {
+                nRecommendations, sampleSize
+            };
+
+            recommendCommand.SetHandler((nRecommendations, sampleSize) =>
+            {
+                RecommendArtistsAsync(nRecommendations, sampleSize).Wait();
+            }, nRecommendations, sampleSize);
+
+            rootCommand.Add(importCsvCommand);
+            rootCommand.Add(queryCommand);
+            rootCommand.Add(recommendCommand);
 
             return await rootCommand.InvokeAsync(args);
         }
 
-        static void ReadFile(FileInfo file)
+        static async Task ImportFileAsync(FileInfo file)
         {
-            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                HasHeaderRecord = true,
-                MissingFieldFound = null
-            };
+            var reader = new RecordCsvReader();
+            var db = new ApplicationDbContext();
 
-            using (var stream = file.OpenText())
-            using (var csv = new CsvReader(stream, config))
-            {
-                var records = csv.GetRecords<Record>();
+            await db.ImportRecordsAsync(reader.ReadRecords(file));
+        }
+        static async Task RecommendArtistsAsync(int nRecommendations, int sampleSize)
+        {
+            Random random = new Random();
+            var db = new ApplicationDbContext();
+            var chatClient = new ChatClient();
 
-                var types = new HashSet<string>();
+            var artists = db.Records
+                .Select(r => r.ArtistName)
+                .Distinct()
+                .Take(sampleSize);
 
-                foreach(var record  in records)
-                {
-                    types.Add(record.Type);
-                }
+            var artistsJoined = string.Join(',', artists);
 
-                foreach (var type in types)
-                {
-                    Console.WriteLine(type);
-                }
-            }
+            var response = await chatClient.AskQuestionAsync($"recommend {nRecommendations} artists similar to {artistsJoined}");
+
+            Console.WriteLine(response);
+        }
+
+        static void QueryArtists(int sampleSize)
+        {
+            Random random = new Random();
+            var db = new ApplicationDbContext();
+
+            var artists = db.Records
+                .Select(r => r.ArtistName)
+                .Distinct()
+                .Take(sampleSize);
+
+            Console.WriteLine(string.Join(',', artists));
         }
     }
 }
